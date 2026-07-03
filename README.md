@@ -74,6 +74,8 @@ The compose file uses security-first defaults:
 - host access is bound to `127.0.0.1:8081`
 - by default, other containers on the shared Docker network can use `http://telegram-bot-api:8081`
 - port `8081` is not exposed publicly by default
+- both this stack and the bot stack must join the external Docker network `telegram-shared`
+- the Bot API listens on `8081`; `8082` is only the internal stats endpoint used by the healthcheck
 
 ## Check logs
 
@@ -125,7 +127,7 @@ TELEGRAM_BOT_API_BASE_URL=http://NAS_LAN_IP:8081
 
 ## Shared Docker network for multiple bot repos
 
-This compose file creates a Docker network with the fixed name `telegram-bot-api-net`. That makes it easy for other compose projects to join the same network and reach the service as `telegram-bot-api`.
+This compose file joins the external Docker network `telegram-shared`. Other compose projects must also join `telegram-shared` so they can reach the service as `telegram-bot-api`.
 
 Example bot compose snippet:
 
@@ -136,21 +138,19 @@ services:
     environment:
       TELEGRAM_BOT_API_BASE_URL: http://telegram-bot-api:8081
     networks:
-      - telegram-bot-api-net
+      - telegram-shared
 
 networks:
-  telegram-bot-api-net:
+  telegram-shared:
     external: true
-    name: telegram-bot-api-net
+    name: telegram-shared
 ```
 
-This repo creates that named network on first start. If you prefer to manage it as an external network yourself, create it manually first:
+Create that shared network once before starting the stacks:
 
 ```sh
-docker network create telegram-bot-api-net
+docker network create telegram-shared
 ```
-
-Then change this repo's network definition to `external: true`.
 
 ## Local file behavior
 
@@ -199,7 +199,7 @@ They call the same `docker compose` commands shown above.
 
 ### Bot cannot reach `http://telegram-bot-api:8081`
 
-- Make sure both the bot container and this service are on `telegram-bot-api-net`.
+- Make sure both the bot container and this service are on `telegram-shared`.
 - Confirm the bot uses `TELEGRAM_BOT_API_BASE_URL=http://telegram-bot-api:8081`.
 - Check that the service is healthy with `docker compose ps`.
 
